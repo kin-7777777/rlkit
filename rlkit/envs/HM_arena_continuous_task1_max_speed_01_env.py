@@ -61,6 +61,15 @@ class HM_arena_continuous_task1_max_speed_01Env(gym.Env):
         action_x_speed = action[0]
         action_y_speed = action[1]
         action_lick = action[2]
+        
+        if action_x_speed <= self.min_action_x_speed:
+          action_x_speed = self.min_action_x_speed
+        if action_x_speed >= self.max_action_x_speed:
+          action_x_speed = self.max_action_x_speed
+        if action_y_speed <= self.min_action_y_speed:
+          action_y_speed = self.min_action_y_speed
+        if action_y_speed >= self.max_action_y_speed:
+          action_y_speed = self.max_action_y_speed
 
         x_pos += action_x_speed
         y_pos += action_y_speed
