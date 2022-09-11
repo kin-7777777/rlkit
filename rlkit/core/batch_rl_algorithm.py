@@ -1,6 +1,7 @@
 import abc
 
 import gtimer as gt
+import time
 from rlkit.core.rl_algorithm import BaseRLAlgorithm
 from rlkit.data_management.replay_buffer import ReplayBuffer
 from rlkit.samplers.data_collector import PathCollector
@@ -48,8 +49,10 @@ class BatchRLAlgorithm(BaseRLAlgorithm, metaclass=abc.ABCMeta):
         for self.epoch in range(self._start_epoch, self.num_epochs):
             self.offline_rl = self.epoch < 0
             self._begin_epoch(self.epoch)
+            start = time.time()
             self._train()
             self._end_epoch(self.epoch)
+            print(time.time() - start)
 
     def _train(self):
         if self.epoch == 0 and self.min_num_steps_before_training > 0:
