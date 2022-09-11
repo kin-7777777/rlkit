@@ -171,6 +171,8 @@ class SACGTrainer(TorchTrainer, LossFunction):
         batch,
         skip_statistics=False,
     ) -> Tuple[SACGLosses, LossStatistics]:
+        from gamma.utils.arrays import DEVICE
+        
         rewards = batch['rewards']
         terminals = batch['terminals']
         obs = batch['observations']
@@ -195,7 +197,7 @@ class SACGTrainer(TorchTrainer, LossFunction):
             self.qf2(obs, new_obs_actions),
         )
         policy_loss = (alpha*log_pi - q_new_actions).mean()
-
+        
         """
         QF Loss
         """
@@ -203,18 +205,28 @@ class SACGTrainer(TorchTrainer, LossFunction):
         q2_pred = self.qf2(obs, actions)
         next_dist = self.policy(next_obs)
         new_next_actions, new_log_pi = next_dist.rsample_and_logprob()
-        new_log_pi = new_log_pi.unsqueeze(-1)
-
-        q_target = self.reward_scale * rewards# + (1. - terminals) * self.discount * target_q_values
-        qf1_loss = self.qf_criterion(q1_pred, q_target.detach())
-        qf2_loss = self.qf_criterion(q2_pred, q_target.detach())
         
-        """
-        Gamma model Loss
-        """
         ## condition dicts contain keys (s, a)
         condition_dict, next_condition_dict = format_batch_a(batch, new_next_actions)
         
+        new_log_pi = new_log_pi.unsqueeze(-1)
+        gamma_sample_states = self.g_model.sample(len(rewards), condition_dict).detach().cpu()
+        gamma_sample_rewards = torch.zeros([len(rewards), 1]).type(torch.FloatTensor)
+        zero_action = np.zeros(self.env.action_space.low.size)
+        for i in range(len(gamma_sample_states)):
+            # set state to sample state
+            self.env.state = gamma_sample_states[i]
+            # use "zero_action" to step, in order to get reward (does not work if state changes even with zero_action)
+            _, gamma_sample_rewards[i][0], _, _ = self.env.step(zero_action)
+        target_q_values = gamma_sample_rewards.to(torch.device(DEVICE))
+
+        q_target = target_q_values
+        qf1_loss = self.qf_criterion(q1_pred, q_target)
+        qf2_loss = self.qf_criterion(q2_pred, q_target)
+
+        """
+        Gamma model Loss
+        """
         ## update single-step distribution as N(s', σ)
         self.g_bootstrap.update_p(next_condition_dict['s'], sigma=self.g_sigma)
         
