@@ -45,10 +45,7 @@ class BatchRLAlgorithm(BaseRLAlgorithm, metaclass=abc.ABCMeta):
 
     def train(self):
         """Negative epochs are offline, positive epochs are online"""
-        for self.epoch in gt.timed_for(
-                range(self._start_epoch, self.num_epochs),
-                save_itrs=True,
-        ):
+        for self.epoch in range(self._start_epoch, self.num_epochs):
             self.offline_rl = self.epoch < 0
             self._begin_epoch(self.epoch)
             self._train()
@@ -70,7 +67,7 @@ class BatchRLAlgorithm(BaseRLAlgorithm, metaclass=abc.ABCMeta):
             self.num_eval_steps_per_epoch,
             discard_incomplete_paths=True,
         )
-        gt.stamp('evaluation sampling')
+        # gt.stamp('evaluation sampling')
 
         for _ in range(self.num_train_loops_per_epoch):
             new_expl_paths = self.expl_data_collector.collect_new_paths(
@@ -78,15 +75,15 @@ class BatchRLAlgorithm(BaseRLAlgorithm, metaclass=abc.ABCMeta):
                 self.num_expl_steps_per_train_loop,
                 discard_incomplete_paths=False,
             )
-            gt.stamp('exploration sampling', unique=False)
+            # gt.stamp('exploration sampling', unique=False)
 
             if not self.offline_rl:
                 self.replay_buffer.add_paths(new_expl_paths)
-            gt.stamp('data storing', unique=False)
+            # gt.stamp('data storing', unique=False)
 
             self.training_mode(True)
             for _ in range(self.num_trains_per_train_loop):
                 train_data = self.replay_buffer.random_batch(self.batch_size)
                 self.trainer.train(train_data)
-            gt.stamp('training', unique=False)
+            # gt.stamp('training', unique=False)
             self.training_mode(False)
