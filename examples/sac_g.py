@@ -1,4 +1,5 @@
-from gym.envs.mujoco import HalfCheetahEnv
+# from gym.envs.mujoco import HalfCheetahEnv
+from gym.envs.mujoco.half_cheetah_v3 import HalfCheetahEnv
 from gym.envs.classic_control import pendulum
 
 import rlkit.torch.pytorch_util as ptu
@@ -16,6 +17,10 @@ from rlkit.envs.HM_arena_continuous_task1_max_speed_01_env import HM_arena_conti
 import os
 import copy
 
+import numpy as np
+import torch
+import random
+
 from gamma.flows import (
     make_conditional_flow,
 )
@@ -31,10 +36,18 @@ from gamma.utils import (
 
 
 def experiment(variant):
-    expl_env = HM_arena_continuous_task1_max_speed_01Env()
-    eval_env = HM_arena_continuous_task1_max_speed_01Env()
+    expl_env = NormalizedBoxEnv(HM_arena_continuous_task1_max_speed_01Env())
+    eval_env = NormalizedBoxEnv(HM_arena_continuous_task1_max_speed_01Env())
     obs_dim = expl_env.observation_space.low.size
     action_dim = eval_env.action_space.low.size
+    
+    ## set seed
+    seed = variant['seed']
+    np.random.seed(seed)
+    torch.manual_seed(seed)
+    random.seed(seed)
+    eval_env.seed(seed)
+    expl_env.seed(seed)
     
     condition_dims = {
         's': obs_dim,
@@ -70,9 +83,8 @@ def experiment(variant):
         variant['replay_buffer_size'],
         expl_env,
     )
-
     ## initialize conditional spline flow
-    g_model = make_conditional_flow(obs_dim, [M, M], condition_dims)
+    g_model = make_conditional_flow(obs_dim, [M, M, M], condition_dims)
     
     ## target model is analogous to a target Q-function
     g_target_model = copy.deepcopy(g_model)
@@ -110,14 +122,15 @@ def experiment(variant):
 if __name__ == "__main__":
     # noinspection PyTypeChecker
     variant = dict(
-        algorithm="SAC",
+        algorithm="SACG",
         version="normal",
         layer_size=256,
         replay_buffer_size=int(1E6),
         gamma_discount=0.99,
+        seed=0,
         algorithm_kwargs=dict(
             # num_epochs=3000,
-            num_epochs=300,
+            num_epochs=100,
             num_eval_steps_per_epoch=5000,
             num_trains_per_train_loop=1000,
             num_expl_steps_per_train_loop=1000,
@@ -126,16 +139,16 @@ if __name__ == "__main__":
             batch_size=256,
         ),
         trainer_kwargs=dict(
-            discount=0.99,
-            target_update_period=1,
             policy_lr=3E-4,
             qf_lr=3E-4,
             reward_scale=1,
             use_automatic_entropy_tuning=True,
-            
+            g_lr=3E-4,
+            g_tau = 0.005,
+            g_sigma=0.1,
         ),
     )
-    setup_logger('gamma_test_0', variant=variant)
+    setup_logger('gamma-test-0.01speed-norm', variant=variant)
     ptu.set_gpu_mode(False)  # optionally set the GPU (default=False)
     set_device('cpu') # 'cpu' or 'cuda:0' for gamma model device
     experiment(variant)

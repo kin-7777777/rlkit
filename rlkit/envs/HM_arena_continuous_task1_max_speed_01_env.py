@@ -17,6 +17,8 @@ class HM_arena_continuous_task1_max_speed_01Env(gym.Env):
     }
 
     def __init__(self):
+        speed_coeff = 0.1
+
         self.reward_zone_size = 0.4
         self.reward_zone_x_size = 0.05
         self.reward_zone_y_size = 0.0031
@@ -24,14 +26,14 @@ class HM_arena_continuous_task1_max_speed_01Env(gym.Env):
         self.max_x_pos = 1.0
         self.min_y_pos = -1.0
         self.max_y_pos = 1.0
-        self.min_x_speed = -0.1
-        self.max_x_speed = 0.1
-        self.min_y_speed = -0.1
-        self.max_y_speed = 0.1
-        self.min_action_x_speed = -0.1
-        self.max_action_x_speed = 0.1
-        self.min_action_y_speed = -0.1
-        self.max_action_y_speed = 0.1
+        self.min_x_speed = -0.1 * speed_coeff
+        self.max_x_speed = 0.1 * speed_coeff
+        self.min_y_speed = -0.1 * speed_coeff
+        self.max_y_speed = 0.1 * speed_coeff
+        self.min_action_x_speed = -0.1 * speed_coeff
+        self.max_action_x_speed = 0.1 * speed_coeff
+        self.min_action_y_speed = -0.1 * speed_coeff
+        self.max_action_y_speed = 0.1 * speed_coeff
         self.min_action_lick = 0
         self.max_action_lick = 0.1
 
@@ -44,7 +46,7 @@ class HM_arena_continuous_task1_max_speed_01Env(gym.Env):
         self.observation_space = spaces.Box(low=self.low_state, high=self.high_state, dtype=np.float32)
         self.action_space = spaces.Box(low=self.low_action, high=self.high_action, dtype=np.float32)
 
-        self.seed()
+        # self.seed()
         self.reset()
 
     def seed(self, seed=None):

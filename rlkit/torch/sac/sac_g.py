@@ -34,9 +34,8 @@ class SACGTrainer(TorchTrainer, LossFunction):
             g_target_model,
             g_bootstrap,
             
-            discount=0.99,
             reward_scale=1.0,
-            g_sample_discount=0.9,
+            g_sample_discount=None,
             g_tau=0.005,
 
             policy_lr=1e-3,
@@ -46,7 +45,6 @@ class SACGTrainer(TorchTrainer, LossFunction):
             g_sigma=0.1,
             optimizer_class=optim.Adam,
 
-            target_update_period=1,
             plotter=None,
             render_eval_paths=False,
 
@@ -61,7 +59,6 @@ class SACGTrainer(TorchTrainer, LossFunction):
         self.g_model = g_model
         self.g_target_model = g_target_model
         self.g_bootstrap = g_bootstrap
-        self.target_update_period = target_update_period
 
         self.use_automatic_entropy_tuning = use_automatic_entropy_tuning
         if self.use_automatic_entropy_tuning:
@@ -105,7 +102,6 @@ class SACGTrainer(TorchTrainer, LossFunction):
         self.g_sample_discount = g_sample_discount
         self.g_tau = g_tau
 
-        self.discount = discount
         self.reward_scale = reward_scale
         self._n_train_steps_total = 0
         self._need_to_update_eval_statistics = True

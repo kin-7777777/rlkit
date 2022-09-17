@@ -1,4 +1,5 @@
-from gym.envs.mujoco import HalfCheetahEnv
+# from gym.envs.mujoco import HalfCheetahEnv
+from gym.envs.mujoco.half_cheetah_v3 import HalfCheetahEnv
 from gym.envs.classic_control import pendulum
 
 import rlkit.torch.pytorch_util as ptu
@@ -13,11 +14,23 @@ from rlkit.torch.torch_rl_algorithm import TorchBatchRLAlgorithm
 
 from rlkit.envs.HM_arena_continuous_task1_max_speed_01_env import HM_arena_continuous_task1_max_speed_01Env
 
+import numpy as np
+import torch
+import random
+
 def experiment(variant):
     expl_env = HM_arena_continuous_task1_max_speed_01Env()
     eval_env = HM_arena_continuous_task1_max_speed_01Env()
     obs_dim = expl_env.observation_space.low.size
     action_dim = eval_env.action_space.low.size
+    
+    ## set seed
+    seed = variant['seed']
+    np.random.seed(seed)
+    torch.manual_seed(seed)
+    random.seed(seed)
+    eval_env.seed(seed)
+    expl_env.seed(seed)
 
     M = variant['layer_size']
     qf1 = ConcatMlp(
@@ -89,6 +102,7 @@ if __name__ == "__main__":
         version="normal",
         layer_size=256,
         replay_buffer_size=int(1E6),
+        seed=0,
         algorithm_kwargs=dict(
             # num_epochs=3000,
             num_epochs=300,
@@ -109,6 +123,6 @@ if __name__ == "__main__":
             use_automatic_entropy_tuning=True,
         ),
     )
-    setup_logger('fixed-speed-sac', variant=variant)
-    ptu.set_gpu_mode(False)  # optionally set the GPU (default=False)
+    setup_logger('sac-test-0.01speed-norm', variant=variant)
+    ptu.set_gpu_mode(True)  # optionally set the GPU (default=False)
     experiment(variant)
