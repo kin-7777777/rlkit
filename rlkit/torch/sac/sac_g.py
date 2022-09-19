@@ -14,8 +14,10 @@ from rlkit.core.logging import add_prefix
 import gtimer as gt
 
 from gamma.td.utils import (
+    format_batch_mve,
     soft_update_from_to,
     format_batch_a,
+    format_batch_mve
 )
 
 SACGLosses = namedtuple(
@@ -37,6 +39,8 @@ class SACGTrainer(TorchTrainer, LossFunction):
             reward_scale=1.0,
             g_discount=0.99,
             g_sample_discount=None,
+            g_mve_discount=0.99,
+            g_mve_horizon=3,
             g_tau=0.005,
 
             policy_lr=1e-3,
@@ -104,7 +108,11 @@ class SACGTrainer(TorchTrainer, LossFunction):
         self.g_sample_discount = g_sample_discount
         if self.g_sample_discount == None:
             self.g_sample_discount = g_discount
-            
+        self.g_mve_discount = g_mve_discount
+        if self.g_mve_discount <= self.g_discount:
+            raise ValueError("SACG Params Error: Discount used for MVE is lower than or equal to gamma model discount!")
+        self.g_mve_horizon = g_mve_horizon
+        
         self.g_tau = g_tau
 
         self.reward_scale = reward_scale
@@ -155,17 +163,13 @@ class SACGTrainer(TorchTrainer, LossFunction):
             self._need_to_update_eval_statistics = False
         gt.stamp('sac training', unique=False)
 
-    def try_update_target_networks(self):
-        if self._n_train_steps_total % self.target_update_period == 0:
-            self.update_target_networks()
-
-    def update_target_networks(self):
-        ptu.soft_update_from_to(
-            self.qf1, self.target_qf1, self.soft_target_tau
-        )
-        ptu.soft_update_from_to(
-            self.qf2, self.target_qf2, self.soft_target_tau
-        )
+    def sample_gamma_n_rollout(self, batch_size, init_observations, n=3):
+        sample_states = init_observations
+        for _ in range(n):
+            sample_actions = self.policy(sample_states).sample()
+            condition_dict = format_batch_mve(sample_states, sample_actions)
+            sample_states = self.g_model.sample(batch_size, condition_dict)
+        return sample_states
 
     def compute_loss(
         self,
@@ -179,6 +183,8 @@ class SACGTrainer(TorchTrainer, LossFunction):
         obs = batch['observations']
         actions = batch['actions']
         next_obs = batch['next_observations']
+        
+        batch_size = len(batch['rewards'])
 
         """
         Policy and Alpha Loss
@@ -206,23 +212,34 @@ class SACGTrainer(TorchTrainer, LossFunction):
         q2_pred = self.qf2(obs, actions)
         next_dist = self.policy(next_obs)
         new_next_actions, new_log_pi = next_dist.rsample_and_logprob()
+        new_log_pi = new_log_pi.unsqueeze(-1)
         
         ## condition dicts contain keys (s, a)
         condition_dict, next_condition_dict = format_batch_a(batch, new_next_actions)
         
-        new_log_pi = new_log_pi.unsqueeze(-1)
-        gamma_sample_states = self.g_model.sample(len(rewards), condition_dict).detach().cpu()
-        gamma_sample_rewards = torch.zeros([len(rewards), 1]).type(torch.FloatTensor)
-        gamma_sample_actions = self.policy(gamma_sample_states).sample().cpu()
-        # zero_action = np.zeros(self.env.action_space.low.size)
-        for i in range(len(gamma_sample_states)):
-            # set state to sample state
-            self.env.state = gamma_sample_states[i]
-            # use "zero_action" to step, in order to get reward (does not work if state changes even with zero_action)
-            _, gamma_sample_rewards[i][0], _, _ = self.env.step(ptu.get_numpy(gamma_sample_actions[i]))
-        target_q_values = gamma_sample_rewards.to(torch.device(DEVICE))
+        gamma_mve_first_term = 0
+        for n in range(1, self.g_mve_horizon+1):
+            alpha_n = ((1-self.g_mve_discount) * (self.g_mve_discount-self.g_discount)**(n-1)) / (1-self.g_discount)**n
+            rollout_sample_states = self.sample_gamma_n_rollout(batch_size, obs, self.g_mve_horizon).detach()
+            rollout_sample_actions = self.policy(rollout_sample_states).sample().detach()
+            rollout_sample_rewards = torch.zeros([batch_size, 1]).type(torch.FloatTensor)
+            for i in range(batch_size):
+                self.env.state = rollout_sample_states[i]
+                _, rollout_sample_rewards[i][0], _, _ = self.env.step(ptu.get_numpy(rollout_sample_actions[i]))
+            gamma_mve_first_term += alpha_n * rollout_sample_rewards
+            
+        horizon_sample_states = self.sample_gamma_n_rollout(batch_size, obs, self.g_mve_horizon).detach()
+        horizon_sample_actions = self.policy(horizon_sample_states).sample().detach()
+        horizon_sample_rewards = torch.zeros([batch_size, 1]).type(torch.FloatTensor)
+        for i in range(batch_size):
+            self.env.state = horizon_sample_states[i]
+            _, horizon_sample_rewards[i][0], _, _ = self.env.step(ptu.get_numpy(horizon_sample_actions[i]))
+        gamma_mve_second_term = (1-self.g_mve_discount) * ((self.g_mve_discount-self.g_discount)/(1-self.g_discount))**self.g_mve_horizon * horizon_sample_rewards
+        
+        v_gamma_mve = gamma_mve_first_term + gamma_mve_second_term
+        target_q_values = rewards + self.g_mve_discount * v_gamma_mve.to(torch.device(DEVICE))
 
-        q_target = target_q_values
+        q_target = target_q_values.to(torch.device(DEVICE))
         qf1_loss = self.qf_criterion(q1_pred, q_target)
         qf2_loss = self.qf_criterion(q2_pred, q_target)
 

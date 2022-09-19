@@ -18,6 +18,10 @@ def format_batch_a(batch, next_actions):
     next_condition_dict = make_condition(batch['next_observations'], next_actions)
     return condition_dict, next_condition_dict
 
+def format_batch_mve(observations, actions):
+    condition_dict = make_condition(observations, actions)
+    return condition_dict
+
 def soft_update_from_to(source, target, tau):
     for target_param, param in zip(target.parameters(), source.parameters()):
         target_param.data.copy_(

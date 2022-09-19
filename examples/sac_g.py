@@ -138,18 +138,20 @@ if __name__ == "__main__":
             batch_size=256,
         ),
         trainer_kwargs=dict(
-            policy_lr=3E-4,
-            qf_lr=3E-4,
+            policy_lr=1E-4,
+            qf_lr=1E-4,
             reward_scale=1,
             use_automatic_entropy_tuning=False,
-            g_discount=0.99,
-            g_sample_discount=0.90,
-            g_lr=3E-4,
+            g_discount=0.80,
+            # g_sample_discount=0.90,
+            g_lr=1E-4,
             g_tau = 0.005,
-            g_sigma=0.1,
+            g_sigma=0.01,
+            g_mve_discount=0.99,
+            g_mve_horizon=3,
         ),
     )
-    setup_logger('gamma-0.01speed-noenttune', variant=variant)
+    setup_logger('gamma-mve-0.01speed', variant=variant)
     ptu.set_gpu_mode(False)  # optionally set the GPU (default=False)
     set_device('cpu') # 'cpu' or 'cuda:0' for gamma model device
     experiment(variant)
