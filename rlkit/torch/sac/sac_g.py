@@ -220,16 +220,16 @@ class SACGTrainer(TorchTrainer, LossFunction):
         gamma_mve_first_term = 0
         for n in range(1, self.g_mve_horizon+1):
             alpha_n = ((1-self.g_mve_discount) * (self.g_mve_discount-self.g_discount)**(n-1)) / (1-self.g_discount)**n
-            rollout_sample_states = self.sample_gamma_n_rollout(batch_size, obs, self.g_mve_horizon).detach()
-            rollout_sample_actions = self.policy(rollout_sample_states).sample().detach()
+            rollout_sample_states = self.sample_gamma_n_rollout(batch_size, obs, self.g_mve_horizon)
+            rollout_sample_actions = self.policy(rollout_sample_states).sample()
             rollout_sample_rewards = torch.zeros([batch_size, 1]).type(torch.FloatTensor)
             for i in range(batch_size):
                 self.env.state = rollout_sample_states[i]
                 _, rollout_sample_rewards[i][0], _, _ = self.env.step(ptu.get_numpy(rollout_sample_actions[i]))
             gamma_mve_first_term += alpha_n * rollout_sample_rewards
             
-        horizon_sample_states = self.sample_gamma_n_rollout(batch_size, obs, self.g_mve_horizon).detach()
-        horizon_sample_actions = self.policy(horizon_sample_states).sample().detach()
+        horizon_sample_states = self.sample_gamma_n_rollout(batch_size, obs, self.g_mve_horizon)
+        horizon_sample_actions = self.policy(horizon_sample_states).sample()
         horizon_sample_rewards = torch.zeros([batch_size, 1]).type(torch.FloatTensor)
         for i in range(batch_size):
             self.env.state = horizon_sample_states[i]
@@ -239,7 +239,7 @@ class SACGTrainer(TorchTrainer, LossFunction):
         v_gamma_mve = gamma_mve_first_term + gamma_mve_second_term
         target_q_values = rewards + self.g_mve_discount * v_gamma_mve.to(torch.device(DEVICE))
 
-        q_target = target_q_values.to(torch.device(DEVICE))
+        q_target = target_q_values.detach().to(torch.device(DEVICE))
         qf1_loss = self.qf_criterion(q1_pred, q_target)
         qf2_loss = self.qf_criterion(q2_pred, q_target)
 
