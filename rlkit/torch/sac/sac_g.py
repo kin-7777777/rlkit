@@ -35,6 +35,7 @@ class SACGTrainer(TorchTrainer, LossFunction):
             g_bootstrap,
             
             reward_scale=1.0,
+            g_discount=0.99,
             g_sample_discount=None,
             g_tau=0.005,
 
@@ -99,7 +100,11 @@ class SACGTrainer(TorchTrainer, LossFunction):
         self.g_sigma = g_sigma
         
         self.g_optimizer = torch.optim.Adam(self.g_model.parameters(), lr=self.g_lr, weight_decay=self.g_decay)
+        self.g_discount = g_discount
         self.g_sample_discount = g_sample_discount
+        if self.g_sample_discount == None:
+            self.g_sample_discount = g_discount
+            
         self.g_tau = g_tau
 
         self.reward_scale = reward_scale
@@ -208,12 +213,13 @@ class SACGTrainer(TorchTrainer, LossFunction):
         new_log_pi = new_log_pi.unsqueeze(-1)
         gamma_sample_states = self.g_model.sample(len(rewards), condition_dict).detach().cpu()
         gamma_sample_rewards = torch.zeros([len(rewards), 1]).type(torch.FloatTensor)
-        zero_action = np.zeros(self.env.action_space.low.size)
+        gamma_sample_actions = self.policy(gamma_sample_states).sample().cpu()
+        # zero_action = np.zeros(self.env.action_space.low.size)
         for i in range(len(gamma_sample_states)):
             # set state to sample state
             self.env.state = gamma_sample_states[i]
             # use "zero_action" to step, in order to get reward (does not work if state changes even with zero_action)
-            _, gamma_sample_rewards[i][0], _, _ = self.env.step(zero_action)
+            _, gamma_sample_rewards[i][0], _, _ = self.env.step(ptu.get_numpy(gamma_sample_actions[i]))
         target_q_values = gamma_sample_rewards.to(torch.device(DEVICE))
 
         q_target = target_q_values

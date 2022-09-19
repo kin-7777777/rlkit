@@ -84,7 +84,7 @@ def experiment(variant):
         expl_env,
     )
     ## initialize conditional spline flow
-    g_model = make_conditional_flow(obs_dim, [M, M, M], condition_dims)
+    g_model = make_conditional_flow(obs_dim, [M, M], condition_dims)
     
     ## target model is analogous to a target Q-function
     g_target_model = copy.deepcopy(g_model)
@@ -92,7 +92,7 @@ def experiment(variant):
     ## bootstrapped target distribution is mixture of
     ## single-step gaussian (with weight `1 - discount`)
     ## and target model (with weight `discount`)
-    g_bootstrap = BootstrapTarget(g_target_model, variant["gamma_discount"])
+    g_bootstrap = BootstrapTarget(g_target_model, variant['trainer_kwargs']["g_discount"])
     
     trainer = SACGTrainer(
         env=eval_env,
@@ -126,11 +126,10 @@ if __name__ == "__main__":
         version="normal",
         layer_size=256,
         replay_buffer_size=int(1E6),
-        gamma_discount=0.99,
         seed=0,
         algorithm_kwargs=dict(
             # num_epochs=3000,
-            num_epochs=100,
+            num_epochs=300,
             num_eval_steps_per_epoch=5000,
             num_trains_per_train_loop=1000,
             num_expl_steps_per_train_loop=1000,
@@ -142,13 +141,15 @@ if __name__ == "__main__":
             policy_lr=3E-4,
             qf_lr=3E-4,
             reward_scale=1,
-            use_automatic_entropy_tuning=True,
+            use_automatic_entropy_tuning=False,
+            g_discount=0.99,
+            g_sample_discount=0.90,
             g_lr=3E-4,
             g_tau = 0.005,
             g_sigma=0.1,
         ),
     )
-    setup_logger('gamma-test-0.01speed-norm', variant=variant)
+    setup_logger('gamma-0.01speed-noenttune', variant=variant)
     ptu.set_gpu_mode(False)  # optionally set the GPU (default=False)
     set_device('cpu') # 'cpu' or 'cuda:0' for gamma model device
     experiment(variant)

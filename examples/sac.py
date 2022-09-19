@@ -19,8 +19,8 @@ import torch
 import random
 
 def experiment(variant):
-    expl_env = HM_arena_continuous_task1_max_speed_01Env()
-    eval_env = HM_arena_continuous_task1_max_speed_01Env()
+    expl_env = NormalizedBoxEnv(HM_arena_continuous_task1_max_speed_01Env())
+    eval_env = NormalizedBoxEnv(HM_arena_continuous_task1_max_speed_01Env())
     obs_dim = expl_env.observation_space.low.size
     action_dim = eval_env.action_space.low.size
     
@@ -124,5 +124,5 @@ if __name__ == "__main__":
         ),
     )
     setup_logger('sac-test-0.01speed-norm', variant=variant)
-    ptu.set_gpu_mode(True)  # optionally set the GPU (default=False)
+    ptu.set_gpu_mode(False)  # optionally set the GPU (default=False)
     experiment(variant)
