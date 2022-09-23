@@ -13,14 +13,15 @@ from rlkit.torch.networks import ConcatMlp
 from rlkit.torch.torch_rl_algorithm import TorchBatchRLAlgorithm
 
 from rlkit.envs.HM_arena_continuous_task1_max_speed_01_env import HM_arena_continuous_task1_max_speed_01Env
+from rlkit.envs.HM_arena_continuous_task1_max_speed_01_env import HM_arena_continuous_task1_simplified
 
 import numpy as np
 import torch
 import random
 
 def experiment(variant):
-    expl_env = NormalizedBoxEnv(HM_arena_continuous_task1_max_speed_01Env())
-    eval_env = NormalizedBoxEnv(HM_arena_continuous_task1_max_speed_01Env())
+    expl_env = NormalizedBoxEnv(HM_arena_continuous_task1_simplified())
+    eval_env = NormalizedBoxEnv(HM_arena_continuous_task1_simplified())
     obs_dim = expl_env.observation_space.low.size
     action_dim = eval_env.action_space.low.size
     
@@ -101,7 +102,7 @@ if __name__ == "__main__":
         algorithm="SAC",
         version="normal",
         layer_size=256,
-        replay_buffer_size=int(1E6),
+        replay_buffer_size=int(1E5),
         seed=0,
         algorithm_kwargs=dict(
             # num_epochs=3000,
@@ -110,19 +111,19 @@ if __name__ == "__main__":
             num_trains_per_train_loop=1000,
             num_expl_steps_per_train_loop=1000,
             min_num_steps_before_training=1000,
-            max_path_length=1000,
+            max_path_length=250,
             batch_size=256,
         ),
         trainer_kwargs=dict(
             discount=0.99,
             soft_target_tau=5e-3,
             target_update_period=1,
-            policy_lr=3E-4,
-            qf_lr=3E-4,
+            policy_lr=1E-4,
+            qf_lr=1E-4,
             reward_scale=1,
             use_automatic_entropy_tuning=True,
         ),
     )
-    setup_logger('sac-test-0.01speed-norm', variant=variant)
+    setup_logger('sac-test-0.01speed-simplified', variant=variant)
     ptu.set_gpu_mode(False)  # optionally set the GPU (default=False)
     experiment(variant)

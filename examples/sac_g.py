@@ -13,6 +13,7 @@ from rlkit.torch.networks import ConcatMlp
 from rlkit.torch.torch_rl_algorithm import TorchBatchRLAlgorithm
 
 from rlkit.envs.HM_arena_continuous_task1_max_speed_01_env import HM_arena_continuous_task1_max_speed_01Env
+from rlkit.envs.HM_arena_continuous_task1_max_speed_01_env import HM_arena_continuous_task1_simplified
 
 import os
 import copy
@@ -36,8 +37,8 @@ from gamma.utils import (
 
 
 def experiment(variant):
-    expl_env = NormalizedBoxEnv(HM_arena_continuous_task1_max_speed_01Env())
-    eval_env = NormalizedBoxEnv(HM_arena_continuous_task1_max_speed_01Env())
+    expl_env = NormalizedBoxEnv(HM_arena_continuous_task1_simplified())
+    eval_env = NormalizedBoxEnv(HM_arena_continuous_task1_simplified())
     obs_dim = expl_env.observation_space.low.size
     action_dim = eval_env.action_space.low.size
     
@@ -94,6 +95,18 @@ def experiment(variant):
     ## and target model (with weight `discount`)
     g_bootstrap = BootstrapTarget(g_target_model, variant['trainer_kwargs']["g_discount"])
     
+    ## initialize conditional spline flow for mve
+    g_model_mve = make_conditional_flow(obs_dim, [M, M], condition_dims)
+    
+    ## target model is analogous to a target Q-function for mve
+    g_target_model_mve = copy.deepcopy(g_model_mve)
+    
+    ## bootstrapped target distribution is mixture of
+    ## single-step gaussian (with weight `1 - discount`)
+    ## and target model (with weight `discount`)
+    ## for mve
+    g_bootstrap_mve = BootstrapTarget(g_target_model_mve, variant['trainer_kwargs']["g_mve_discount"])
+    
     trainer = SACGTrainer(
         env=eval_env,
         policy=policy,
@@ -102,6 +115,9 @@ def experiment(variant):
         g_model=g_model,
         g_target_model=g_target_model,
         g_bootstrap=g_bootstrap,
+        g_model_mve=g_model_mve,
+        g_target_model_mve=g_target_model_mve,
+        g_bootstrap_mve=g_bootstrap_mve,
         **variant['trainer_kwargs']
     )
     algorithm = TorchBatchRLAlgorithm(
@@ -125,7 +141,7 @@ if __name__ == "__main__":
         algorithm="SACG",
         version="normal",
         layer_size=256,
-        replay_buffer_size=int(1E6),
+        replay_buffer_size=int(1E4),
         seed=0,
         algorithm_kwargs=dict(
             # num_epochs=3000,
@@ -134,24 +150,26 @@ if __name__ == "__main__":
             num_trains_per_train_loop=1000,
             num_expl_steps_per_train_loop=1000,
             min_num_steps_before_training=1000,
-            max_path_length=1000,
+            max_path_length=250,
             batch_size=256,
+            vis_gamma=True,
         ),
         trainer_kwargs=dict(
             policy_lr=1E-4,
             qf_lr=1E-4,
             reward_scale=1,
-            use_automatic_entropy_tuning=False,
-            g_discount=0.80,
-            # g_sample_discount=0.90,
+            use_automatic_entropy_tuning=True,
+            g_discount=0.50,
+            g_sample_discount=0.90,
             g_lr=1E-4,
             g_tau = 0.005,
-            g_sigma=0.01,
+            g_sigma=0.1,
+            use_g_mve=False,
             g_mve_discount=0.99,
             g_mve_horizon=3,
         ),
     )
-    setup_logger('gamma-mve-0.01speed', variant=variant)
+    setup_logger('gamma-0.01speed-simplified-smallpool', variant=variant)
     ptu.set_gpu_mode(False)  # optionally set the GPU (default=False)
     set_device('cpu') # 'cpu' or 'cuda:0' for gamma model device
     experiment(variant)
