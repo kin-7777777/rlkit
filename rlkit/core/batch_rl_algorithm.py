@@ -174,7 +174,7 @@ class BatchRLAlgorithm(BaseRLAlgorithm, metaclass=abc.ABCMeta):
             
             handle = ax.imshow(probs, extent=[x_range.min(), x_range.max(),
                     y_range.min(), y_range.max()],
-                    aspect='auto')
+                    aspect='auto', origin='lower')
             
             arrow = np.array([initial_action[0], initial_action[1]])
             arrow_norm = np.linalg.norm(arrow)
@@ -198,8 +198,8 @@ class BatchRLAlgorithm(BaseRLAlgorithm, metaclass=abc.ABCMeta):
 
         states = np.array([
             (x, y)
-            for x in x_range
             for y in y_range
+            for x in x_range
         ])
 
         return states, x_range, y_range
