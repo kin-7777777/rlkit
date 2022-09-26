@@ -113,6 +113,7 @@ if __name__ == "__main__":
             min_num_steps_before_training=1000,
             max_path_length=250,
             batch_size=256,
+            
         ),
         trainer_kwargs=dict(
             discount=0.99,
@@ -124,6 +125,6 @@ if __name__ == "__main__":
             use_automatic_entropy_tuning=True,
         ),
     )
-    setup_logger('sac-test-0.01speed-simplified', variant=variant)
+    setup_logger('sac-test-0.1speed-simplified-norm', variant=variant)
     ptu.set_gpu_mode(False)  # optionally set the GPU (default=False)
     experiment(variant)

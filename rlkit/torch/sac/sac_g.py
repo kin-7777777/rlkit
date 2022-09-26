@@ -159,20 +159,6 @@ class SACGTrainer(TorchTrainer, LossFunction):
         losses.qf2_loss.backward()
         self.qf2_optimizer.step()
         
-        self.g_optimizer.zero_grad()
-        losses.g_loss.backward()
-        self.g_optimizer.step()
-        
-        if self.use_g_mve:
-            self.g_mve_optimizer.zero_grad()
-            losses.g_loss_mve.backward()
-            self.g_mve_optimizer.step()
-        
-        # gamma target model parameters are an exponentially-moving average of model parameters
-        soft_update_from_to(self.g_model, self.g_target_model, self.g_tau)
-        if self.use_g_mve:
-            soft_update_from_to(self.g_model_mve, self.g_target_model_mve, self.g_tau)
-
         self._n_train_steps_total += 1
 
         # self.try_update_target_networks()
@@ -206,6 +192,11 @@ class SACGTrainer(TorchTrainer, LossFunction):
         batch_size = len(batch['rewards'])
 
         """
+        Update gamma first before computing policy and Q Losses
+        """
+        g_loss, g_loss_mve = self.update_gamma(batch)
+        
+        """
         Policy and Alpha Loss
         """
         dist = self.policy(obs)
@@ -229,12 +220,9 @@ class SACGTrainer(TorchTrainer, LossFunction):
         """
         q1_pred = self.qf1(obs, actions)
         q2_pred = self.qf2(obs, actions)
-        next_dist = self.policy(next_obs)
-        new_next_actions, new_log_pi = next_dist.rsample_and_logprob()
-        new_log_pi = new_log_pi.unsqueeze(-1)
         
         ## condition dicts contain keys (s, a)
-        condition_dict, next_condition_dict = format_batch_a(batch, new_next_actions)
+        condition_dict = format_batch_mve(obs, actions)
         
         if self.use_g_mve:
             gamma_mve_first_term = 0
@@ -274,40 +262,6 @@ class SACGTrainer(TorchTrainer, LossFunction):
         q_target = target_q_values.detach().to(torch.device(DEVICE))
         qf1_loss = self.qf_criterion(q1_pred, q_target)
         qf2_loss = self.qf_criterion(q2_pred, q_target)
-
-        """
-        Gamma model Loss
-        """
-        ## update single-step distribution as N(s', σ)
-        self.g_bootstrap.update_p(next_condition_dict['s'], sigma=self.g_sigma)
-        
-        ## sample from bootstrapped target distribution
-        samples = self.g_bootstrap.sample(len(rewards),
-                                condition_dict, next_condition_dict, discount=self.g_sample_discount)
-        
-        ## get log-prob of samples under both the target distribution and the model
-        log_prob_target = self.g_bootstrap.log_prob(samples, condition_dict, next_condition_dict)
-        log_prob_model = self.g_model.log_prob(samples, condition_dict)
-        
-        ## get g loss
-        g_loss = self.g_criterion(log_prob_model, log_prob_target)
-        
-        if self.use_g_mve:
-            ## update single-step distribution as N(s', σ)
-            self.g_bootstrap_mve.update_p(next_condition_dict['s'], sigma=self.g_sigma)
-            
-            ## sample from bootstrapped target distribution
-            samples_mve = self.g_bootstrap_mve.sample(len(rewards),
-                                    condition_dict, next_condition_dict, discount=self.g_sample_discount)
-            
-            ## get log-prob of samples under both the target distribution and the model
-            log_prob_target_mve = self.g_bootstrap_mve.log_prob(samples_mve, condition_dict, next_condition_dict)
-            log_prob_model_mve = self.g_model_mve.log_prob(samples_mve, condition_dict)
-            
-            ## get g loss
-            g_loss_mve = self.g_criterion(log_prob_model_mve, log_prob_target_mve)
-        else:
-            g_loss_mve = 0
 
         """
         Save some statistics for eval
@@ -355,6 +309,71 @@ class SACGTrainer(TorchTrainer, LossFunction):
 
         return loss, eval_statistics
 
+    def update_gamma(self, batch):
+        
+        rewards = batch['rewards']
+        next_obs = batch['next_observations']
+        
+        """
+        Gamma model Loss
+        """
+        next_dist = self.policy(next_obs)
+        new_next_actions, new_log_pi = next_dist.rsample_and_logprob()
+        new_log_pi = new_log_pi.unsqueeze(-1)
+        ## condition dicts contain keys (s, a)
+        condition_dict, next_condition_dict = format_batch_a(batch, new_next_actions)
+        
+        ## update single-step distribution as N(s', σ)
+        self.g_bootstrap.update_p(next_condition_dict['s'], sigma=self.g_sigma)
+        
+        ## sample from bootstrapped target distribution
+        samples = self.g_bootstrap.sample(len(rewards),
+                                condition_dict, next_condition_dict, discount=self.g_sample_discount)
+        
+        ## get log-prob of samples under both the target distribution and the model
+        log_prob_target = self.g_bootstrap.log_prob(samples, condition_dict, next_condition_dict)
+        log_prob_model = self.g_model.log_prob(samples, condition_dict)
+        
+        ## get g loss
+        g_loss = self.g_criterion(log_prob_model, log_prob_target)
+        
+        if self.use_g_mve:
+            ## update single-step distribution as N(s', σ)
+            self.g_bootstrap_mve.update_p(next_condition_dict['s'], sigma=self.g_sigma)
+            
+            ## sample from bootstrapped target distribution
+            samples_mve = self.g_bootstrap_mve.sample(len(rewards),
+                                    condition_dict, next_condition_dict, discount=self.g_sample_discount)
+            
+            ## get log-prob of samples under both the target distribution and the model
+            log_prob_target_mve = self.g_bootstrap_mve.log_prob(samples_mve, condition_dict, next_condition_dict)
+            log_prob_model_mve = self.g_model_mve.log_prob(samples_mve, condition_dict)
+            
+            ## get g loss
+            g_loss_mve = self.g_criterion(log_prob_model_mve, log_prob_target_mve)
+        else:
+            g_loss_mve = 0
+            
+        """
+        Update model(s)
+        """    
+        self.g_optimizer.zero_grad()
+        g_loss.backward()
+        self.g_optimizer.step()
+            
+        if self.use_g_mve:
+            self.g_mve_optimizer.zero_grad()
+            g_loss_mve.backward()
+            self.g_mve_optimizer.step()
+        
+        # gamma target model parameters are an exponentially-moving average of model parameters
+        soft_update_from_to(self.g_model, self.g_target_model, self.g_tau)
+        if self.use_g_mve:
+            soft_update_from_to(self.g_model_mve, self.g_target_model_mve, self.g_tau)
+            
+        return g_loss, g_loss_mve
+        
+    
     def get_diagnostics(self):
         stats = super().get_diagnostics()
         stats.update(self.eval_statistics)

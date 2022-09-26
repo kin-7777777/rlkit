@@ -38,6 +38,7 @@ class BatchRLAlgorithm(BaseRLAlgorithm, metaclass=abc.ABCMeta):
             num_train_loops_per_epoch=1,
             min_num_steps_before_training=0,
             start_epoch=0, # negative epochs are offline, positive epochs are online
+            vis=False,
             vis_gamma=False,
     ):
         super().__init__(
@@ -58,6 +59,7 @@ class BatchRLAlgorithm(BaseRLAlgorithm, metaclass=abc.ABCMeta):
         self.min_num_steps_before_training = min_num_steps_before_training
         self._start_epoch = start_epoch
         self._vis_gamma = vis_gamma
+        self._vis = vis
 
     def train(self):
         """Negative epochs are offline, positive epochs are online"""
@@ -71,6 +73,14 @@ class BatchRLAlgorithm(BaseRLAlgorithm, metaclass=abc.ABCMeta):
             self._end_epoch(self.epoch)
 
     def _train(self):
+        
+        plot_dir_eval = logger._snapshot_dir + "/plots_eval"
+        if not os.path.exists(plot_dir_eval):
+            os.makedirs(plot_dir_eval)
+        plot_dir_expl = logger._snapshot_dir + "/plots_expl"
+        if not os.path.exists(plot_dir_expl):
+            os.makedirs(plot_dir_expl)
+        
         if self.epoch == 0 and self.min_num_steps_before_training > 0:
             init_expl_paths = self.expl_data_collector.collect_new_paths(
                 self.max_path_length,
@@ -86,24 +96,19 @@ class BatchRLAlgorithm(BaseRLAlgorithm, metaclass=abc.ABCMeta):
             self.num_eval_steps_per_epoch,
             discard_incomplete_paths=True,
         )
+        if self._vis:
+            self.plot_paths(plot_dir_eval, self.epoch, eval_paths)
         gt.stamp('evaluation sampling')
         
-        plot_dir_eval = logger._snapshot_dir + "/plots_eval"
-        if not os.path.exists(plot_dir_eval):
-            os.makedirs(plot_dir_eval)
-        plot_dir_expl = logger._snapshot_dir + "/plots_expl"
-        if not os.path.exists(plot_dir_expl):
-            os.makedirs(plot_dir_expl)
-        self.plot_paths(plot_dir_eval, self.epoch, eval_paths)
-
         for _ in range(self.num_train_loops_per_epoch):
             new_expl_paths = self.expl_data_collector.collect_new_paths(
                 self.max_path_length,
                 self.num_expl_steps_per_train_loop,
                 discard_incomplete_paths=False,
             )
+            if self._vis:
+                self.plot_paths(plot_dir_expl, self.epoch, new_expl_paths)
             gt.stamp('exploration sampling', unique=False)
-            self.plot_paths(plot_dir_expl, self.epoch, new_expl_paths)
 
             if not self.offline_rl:
                 self.replay_buffer.add_paths(new_expl_paths)
@@ -154,7 +159,6 @@ class BatchRLAlgorithm(BaseRLAlgorithm, metaclass=abc.ABCMeta):
         reward_halfwidth = 0.4
         
         queries, x_range, y_range = self.get_vis_states(n_steps)
-        
         fig, axes = plt.subplots(2, 2)
         axes = axes.flatten()
         

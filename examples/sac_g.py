@@ -141,17 +141,18 @@ if __name__ == "__main__":
         algorithm="SACG",
         version="normal",
         layer_size=256,
-        replay_buffer_size=int(1E4),
+        replay_buffer_size=int(1E5),
         seed=0,
         algorithm_kwargs=dict(
             # num_epochs=3000,
             num_epochs=300,
             num_eval_steps_per_epoch=5000,
             num_trains_per_train_loop=1000,
-            num_expl_steps_per_train_loop=1000,
+            num_expl_steps_per_train_loop=10000,
             min_num_steps_before_training=1000,
             max_path_length=250,
             batch_size=256,
+            vis=True,
             vis_gamma=True,
         ),
         trainer_kwargs=dict(
@@ -159,17 +160,17 @@ if __name__ == "__main__":
             qf_lr=1E-4,
             reward_scale=1,
             use_automatic_entropy_tuning=True,
-            g_discount=0.50,
+            g_discount=0.99,
             g_sample_discount=0.90,
             g_lr=1E-4,
             g_tau = 0.005,
-            g_sigma=0.1,
+            g_sigma=0.01,
             use_g_mve=False,
             g_mve_discount=0.99,
             g_mve_horizon=3,
         ),
     )
-    setup_logger('gamma-0.01speed-simplified-smallpool', variant=variant)
+    setup_logger('gamma-0.01speed-simplified', variant=variant)
     ptu.set_gpu_mode(False)  # optionally set the GPU (default=False)
     set_device('cpu') # 'cpu' or 'cuda:0' for gamma model device
     experiment(variant)
