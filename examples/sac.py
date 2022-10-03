@@ -1,6 +1,7 @@
 # from gym.envs.mujoco import HalfCheetahEnv
 from gym.envs.mujoco.half_cheetah_v3 import HalfCheetahEnv
 from gym.envs.classic_control import pendulum
+from gym.envs.mujoco.reacher import ReacherEnv
 
 import rlkit.torch.pytorch_util as ptu
 from rlkit.data_management.env_replay_buffer import EnvReplayBuffer
@@ -100,7 +101,7 @@ if __name__ == "__main__":
     # noinspection PyTypeChecker
     variant = dict(
         algorithm="SAC",
-        version="normal",
+        version="normal-norm-lrfaster",
         layer_size=256,
         replay_buffer_size=int(1E5),
         seed=0,
@@ -119,12 +120,12 @@ if __name__ == "__main__":
             discount=0.99,
             soft_target_tau=5e-3,
             target_update_period=1,
-            policy_lr=1E-4,
-            qf_lr=1E-4,
+            policy_lr=3E-4,
+            qf_lr=3E-4,
             reward_scale=1,
             use_automatic_entropy_tuning=True,
         ),
     )
-    setup_logger('sac-test-0.1speed-simplified-norm', variant=variant)
+    setup_logger('sac-test-0.01speed-simplified', variant=variant)
     ptu.set_gpu_mode(False)  # optionally set the GPU (default=False)
     experiment(variant)

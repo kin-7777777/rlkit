@@ -228,7 +228,7 @@ class SACGTrainer(TorchTrainer, LossFunction):
             gamma_mve_first_term = 0
             for n in range(1, self.g_mve_horizon+1):
                 alpha_n = ((1-self.g_mve_discount) * (self.g_mve_discount-self.g_discount)**(n-1)) / (1-self.g_discount)**n
-                rollout_sample_states = self.sample_gamma_n_rollout(self.g_model, batch_size, obs, n)
+                rollout_sample_states = self.sample_gamma_n_rollout(self.g_model, batch_size, next_obs, n)
                 rollout_sample_actions = self.policy(rollout_sample_states).sample()
                 rollout_sample_rewards = torch.zeros([batch_size, 1]).type(torch.FloatTensor)
                 for i in range(batch_size):
@@ -236,7 +236,7 @@ class SACGTrainer(TorchTrainer, LossFunction):
                     _, rollout_sample_rewards[i][0], _, _ = self.env.step(ptu.get_numpy(rollout_sample_actions[i]))
                 gamma_mve_first_term += alpha_n * rollout_sample_rewards
                 
-            horizon_sample_states = self.sample_gamma_n_rollout(self.g_model, batch_size, obs, self.g_mve_horizon)
+            horizon_sample_states = self.sample_gamma_n_rollout(self.g_model, batch_size, next_obs, self.g_mve_horizon)
             horizon_sample_actions = self.policy(horizon_sample_states).sample()
             condition_dict_terminal = format_batch_mve(horizon_sample_states, horizon_sample_actions)
             terminal_sample_states = self.g_model_mve.sample(batch_size, condition_dict_terminal)
@@ -250,12 +250,12 @@ class SACGTrainer(TorchTrainer, LossFunction):
             v_gamma_mve = gamma_mve_first_term + gamma_mve_second_term
             target_q_values = rewards + self.g_mve_discount * v_gamma_mve.to(torch.device(DEVICE))
         else:
-            gamma_sample_states = self.g_model.sample(batch_size, condition_dict).detach().cpu()
+            gamma_sample_states = self.g_model.sample(batch_size, condition_dict).detach()
             gamma_sample_rewards = torch.zeros([batch_size, 1]).type(torch.FloatTensor)
-            gamma_sample_actions = self.policy(gamma_sample_states).sample().cpu()
+            gamma_sample_actions = self.policy(gamma_sample_states).sample()
             for i in range(len(gamma_sample_states)):
                 # set state to sample state
-                self.env.wrapped_env.state = gamma_sample_states[i]
+                self.env.wrapped_env.state = ptu.get_numpy(gamma_sample_states[i])
                 _, gamma_sample_rewards[i][0], _, _ = self.env.step(ptu.get_numpy(gamma_sample_actions[i]))
             target_q_values = gamma_sample_rewards
         
