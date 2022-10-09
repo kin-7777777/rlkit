@@ -1,6 +1,7 @@
 # from gym.envs.mujoco import HalfCheetahEnv
 from gym.envs.mujoco.half_cheetah_v3 import HalfCheetahEnv
 from gym.envs.classic_control import pendulum
+from gym.envs.mujoco.reacher import ReacherEnv
 
 import rlkit.torch.pytorch_util as ptu
 from rlkit.data_management.env_replay_buffer import EnvReplayBuffer
@@ -10,6 +11,7 @@ from rlkit.samplers.data_collector import MdpPathCollector
 from rlkit.torch.sac.policies import TanhGaussianPolicy, MakeDeterministic
 from rlkit.torch.sac.sac_g import SACGTrainer
 from rlkit.torch.networks import ConcatMlp
+from rlkit.torch.networks import Mlp
 from rlkit.torch.torch_rl_algorithm import TorchBatchRLAlgorithm
 
 from rlkit.envs.HM_arena_continuous_task1_max_speed_01_env import HM_arena_continuous_task1_max_speed_01Env
@@ -66,6 +68,11 @@ def experiment(variant):
         output_size=1,
         hidden_sizes=[M, M],
     )
+    vf = Mlp(
+        input_size=obs_dim,
+        output_size=1,
+        hidden_sizes=[M, M],
+    )
     policy = TanhGaussianPolicy(
         obs_dim=obs_dim,
         action_dim=action_dim,
@@ -112,6 +119,7 @@ def experiment(variant):
         policy=policy,
         qf1=qf1,
         qf2=qf2,
+        vf=vf,
         g_model=g_model,
         g_target_model=g_target_model,
         g_bootstrap=g_bootstrap,
@@ -158,19 +166,20 @@ if __name__ == "__main__":
         trainer_kwargs=dict(
             policy_lr=1E-4,
             qf_lr=1E-4,
+            vf_lr=1E-4,
             reward_scale=1,
             use_automatic_entropy_tuning=True,
-            g_discount=0.95,
+            g_discount=0.80,
             g_sample_discount=0.90,
             g_lr=1E-4,
             g_tau = 0.005,
             g_sigma=0.01,
-            use_g_mve=False,
+            use_g_mve=True,
             g_mve_discount=0.99,
             g_mve_horizon=3,
         ),
     )
-    setup_logger('gamma-0.01speed-simplified', variant=variant)
+    setup_logger('gamma-mve-0.01speed', variant=variant)
     ptu.set_gpu_mode(False)  # optionally set the GPU (default=False)
     set_device('cpu') # 'cpu' or 'cuda:0' for gamma model device
     experiment(variant)
