@@ -22,7 +22,7 @@ from gamma.td.utils import (
 
 SACGLosses = namedtuple(
     'SACLosses',
-    'policy_loss qf1_loss qf2_loss vf_loss alpha_loss g_loss g_loss_mve',
+    'policy_loss qf1_loss qf2_loss vf_loss alpha_loss g_loss',
 )
 
 class SACGTrainer(TorchTrainer, LossFunction):
@@ -33,19 +33,19 @@ class SACGTrainer(TorchTrainer, LossFunction):
             qf1,
             qf2,
             vf,
+            target_vf,
+            soft_target_tau,
             g_model,
             g_target_model,
             g_bootstrap,
-            g_model_mve,
-            g_target_model_mve,
-            g_bootstrap_mve,
             
             reward_scale=1.0,
             g_discount=0.99,
             g_sample_discount=None,
             g_mve_discount=0.99,
-            g_mve_horizon=3,
+            g_mve_horizon=1,
             g_tau=0.005,
+            target_update_period=1,
 
             policy_lr=1e-3,
             qf_lr=1e-3,
@@ -69,6 +69,10 @@ class SACGTrainer(TorchTrainer, LossFunction):
         self.qf1 = qf1
         self.qf2 = qf2
         self.vf = vf
+        self.target_vf = target_vf
+        
+        self.soft_target_tau = soft_target_tau
+        
         self.g_model = g_model
         self.g_target_model = g_target_model
         self.g_bootstrap = g_bootstrap
@@ -121,13 +125,10 @@ class SACGTrainer(TorchTrainer, LossFunction):
             self.g_sample_discount = g_discount
         
         self.g_tau = g_tau
+        self.target_update_period = target_update_period
         
         self.use_g_mve = use_g_mve
         if self.use_g_mve:
-            self.g_model_mve = g_model_mve
-            self.g_target_model_mve = g_target_model_mve
-            self.g_bootstrap_mve = g_bootstrap_mve
-            self.g_mve_optimizer = torch.optim.Adam(self.g_model_mve.parameters(), lr=g_lr, weight_decay=self.g_decay)
             self.g_mve_discount = g_mve_discount
             if self.g_mve_discount <= self.g_discount:
                 raise ValueError("SACG Params Error: Discount used for MVE is lower than or equal to gamma model discount!")
@@ -169,9 +170,13 @@ class SACGTrainer(TorchTrainer, LossFunction):
         losses.vf_loss.backward()
         self.vf_optimizer.step()
         
+        self.g_optimizer.zero_grad()
+        losses.g_loss.backward()
+        self.g_optimizer.step()
+        
         self._n_train_steps_total += 1
 
-        # self.try_update_target_networks()
+        self.try_update_target_networks()
         if self._need_to_update_eval_statistics:
             self.eval_statistics = stats
             # Compute statistics using only one batch per epoch
@@ -186,6 +191,16 @@ class SACGTrainer(TorchTrainer, LossFunction):
             sample_states = model.sample(batch_size, condition_dict)
         return sample_states
 
+    def try_update_target_networks(self):
+        if self._n_train_steps_total % self.target_update_period == 0:
+            self.update_target_networks()
+
+    def update_target_networks(self):
+        ptu.soft_update_from_to(
+            self.vf, self.target_vf, self.soft_target_tau
+        )
+        soft_update_from_to(self.g_model, self.g_target_model, self.g_tau)
+    
     def compute_loss(
         self,
         batch,
@@ -204,7 +219,7 @@ class SACGTrainer(TorchTrainer, LossFunction):
         """
         Update gamma first before computing policy and Q Losses
         """
-        g_loss, g_loss_mve = self.update_gamma(batch)
+        # g_loss, g_loss_mve = self.update_gamma(batch)
         
         """
         Policy and Alpha Loss
@@ -260,25 +275,17 @@ class SACGTrainer(TorchTrainer, LossFunction):
                 for i in range(batch_size):
                     self.env.wrapped_env.state = ptu.get_numpy(rollout_sample_states[i])
                     _, rollout_sample_rewards[i][0], _, _ = self.env.step(ptu.get_numpy(rollout_sample_actions[i]))
-                gamma_mve_first_term += alpha_n * rollout_sample_rewards
-                
-            # horizon_sample_states = self.sample_gamma_n_rollout(self.g_model, batch_size, next_obs, self.g_mve_horizon)
-            # horizon_sample_actions = self.policy(horizon_sample_states).rsample()
-            # condition_dict_terminal = format_batch_mve(horizon_sample_states, horizon_sample_actions)
-            # terminal_sample_states = self.g_model_mve.sample(batch_size, condition_dict_terminal)
-            # terminal_sample_actions = self.policy(terminal_sample_states).rsample()
-            # terminal_sample_rewards = torch.zeros([batch_size, 1]).type(torch.FloatTensor)
-            # for i in range(batch_size):
-            #     self.env.wrapped_env.state = ptu.get_numpy(terminal_sample_states[i])
-            #     _, terminal_sample_rewards[i][0], _, _ = self.env.step(ptu.get_numpy(terminal_sample_actions[i]))
-            # gamma_mve_second_term =  (1-self.g_mve_discount) * (((self.g_mve_discount-self.g_discount)/(1-self.g_discount))**self.g_mve_horizon) * terminal_sample_rewards
+                gamma_mve_first_term += (alpha_n / (1-self.g_mve_discount)) * rollout_sample_rewards
+                if n == self.g_mve_horizon:
+                    horizon_sample_states = rollout_sample_states
             
-            horizon_sample_states = self.sample_gamma_n_rollout(self.g_model, batch_size, next_obs, self.g_mve_horizon)
-            horizon_sample_vf = self.vf(horizon_sample_states)
-            gamma_mve_second_term =  (1-self.g_mve_discount) * (((self.g_mve_discount-self.g_discount)/(1-self.g_discount))**self.g_mve_horizon) * horizon_sample_vf
+            # horizon_sample_states = self.sample_gamma_n_rollout(self.g_model, batch_size, next_obs, self.g_mve_horizon)
+            horizon_sample_vf = self.target_vf(horizon_sample_states)
+            gamma_mve_second_term =  (((self.g_mve_discount-self.g_discount)/(1-self.g_discount))**self.g_mve_horizon) * horizon_sample_vf
             
             v_gamma_mve = gamma_mve_first_term + gamma_mve_second_term
             target_q_values = rewards + self.g_mve_discount * v_gamma_mve.to(torch.device(DEVICE))
+
         else:
             gamma_sample_states = self.g_model.sample(batch_size, condition_dict).detach()
             gamma_sample_rewards = torch.zeros([batch_size, 1]).type(torch.FloatTensor)
@@ -287,12 +294,35 @@ class SACGTrainer(TorchTrainer, LossFunction):
                 # set state to sample state
                 self.env.wrapped_env.state = ptu.get_numpy(gamma_sample_states[i])
                 _, gamma_sample_rewards[i][0], _, _ = self.env.step(ptu.get_numpy(gamma_sample_actions[i]))
-            target_q_values = gamma_sample_rewards
+            target_q_values = gamma_sample_rewards / (1-self.g_discount)
         
         q_target = target_q_values.detach().to(torch.device(DEVICE))
         qf1_loss = self.qf_criterion(q1_pred, q_target)
         qf2_loss = self.qf_criterion(q2_pred, q_target)
 
+        """
+        Gamma model Loss
+        """
+        next_dist = self.policy(next_obs)
+        new_next_actions, new_log_pi = next_dist.rsample_and_logprob()
+        new_log_pi = new_log_pi.unsqueeze(-1)
+        ## condition dicts contain keys (s, a)
+        condition_dict, next_condition_dict = format_batch_a(batch, new_next_actions)
+        
+        ## update single-step distribution as N(s', σ)
+        self.g_bootstrap.update_p(next_condition_dict['s'], sigma=self.g_sigma)
+        
+        ## sample from bootstrapped target distribution
+        samples = self.g_bootstrap.sample(len(rewards),
+                                condition_dict, next_condition_dict, discount=self.g_sample_discount)
+        
+        ## get log-prob of samples under both the target distribution and the model
+        log_prob_target = self.g_bootstrap.log_prob(samples, condition_dict, next_condition_dict)
+        log_prob_model = self.g_model.log_prob(samples, condition_dict)
+        
+        ## get g loss
+        g_loss = self.g_criterion(log_prob_model, log_prob_target)
+        
         """
         Save some statistics for eval
         """
@@ -305,8 +335,6 @@ class SACGTrainer(TorchTrainer, LossFunction):
                 policy_loss
             ))
             eval_statistics['G Loss'] = np.mean(ptu.get_numpy(g_loss))
-            # if self.use_g_mve:
-            #     eval_statistics['G MVE Loss'] = np.mean(ptu.get_numpy(g_loss_mve))
             eval_statistics.update(create_stats_ordered_dict(
                 'Q1 Predictions',
                 ptu.get_numpy(q1_pred),
@@ -318,6 +346,14 @@ class SACGTrainer(TorchTrainer, LossFunction):
             eval_statistics.update(create_stats_ordered_dict(
                 'Q Targets',
                 ptu.get_numpy(q_target),
+            ))
+            eval_statistics.update(create_stats_ordered_dict(
+                'V Predictions',
+                ptu.get_numpy(vf_pred),
+            ))
+            eval_statistics.update(create_stats_ordered_dict(
+                'V Targets',
+                ptu.get_numpy(vf_target),
             ))
             eval_statistics.update(create_stats_ordered_dict(
                 'Log Pis',
@@ -336,7 +372,6 @@ class SACGTrainer(TorchTrainer, LossFunction):
             vf_loss=vf_loss,
             alpha_loss=alpha_loss,
             g_loss=g_loss,
-            g_loss_mve=g_loss_mve
         )
 
         return loss, eval_statistics
@@ -368,24 +403,6 @@ class SACGTrainer(TorchTrainer, LossFunction):
         
         ## get g loss
         g_loss = self.g_criterion(log_prob_model, log_prob_target)
-        
-        # if self.use_g_mve:
-        #     ## update single-step distribution as N(s', σ)
-        #     self.g_bootstrap_mve.update_p(next_condition_dict['s'], sigma=self.g_sigma)
-            
-        #     ## sample from bootstrapped target distribution
-        #     samples_mve = self.g_bootstrap_mve.sample(len(rewards),
-        #                             condition_dict, next_condition_dict, discount=self.g_sample_discount)
-            
-        #     ## get log-prob of samples under both the target distribution and the model
-        #     log_prob_target_mve = self.g_bootstrap_mve.log_prob(samples_mve, condition_dict, next_condition_dict)
-        #     log_prob_model_mve = self.g_model_mve.log_prob(samples_mve, condition_dict)
-            
-        #     ## get g loss
-        #     g_loss_mve = self.g_criterion(log_prob_model_mve, log_prob_target_mve)
-        # else:
-        #     g_loss_mve = 0
-        g_loss_mve = 0
         """
         Update model(s)
         """    
@@ -393,17 +410,10 @@ class SACGTrainer(TorchTrainer, LossFunction):
         g_loss.backward()
         self.g_optimizer.step()
             
-        # if self.use_g_mve:
-        #     self.g_mve_optimizer.zero_grad()
-        #     g_loss_mve.backward()
-        #     self.g_mve_optimizer.step()
-        
         # gamma target model parameters are an exponentially-moving average of model parameters
         soft_update_from_to(self.g_model, self.g_target_model, self.g_tau)
-        # if self.use_g_mve:
-        #     soft_update_from_to(self.g_model_mve, self.g_target_model_mve, self.g_tau)
             
-        return g_loss, g_loss_mve
+        return g_loss
         
     
     def get_diagnostics(self):
