@@ -13,6 +13,8 @@ from rlkit.torch.torch_rl_algorithm import TorchTrainer
 from rlkit.core.logging import add_prefix
 import gtimer as gt
 
+from gym.envs.mujoco import mujoco_env
+
 from gamma.td.utils import (
     format_batch_mve,
     soft_update_from_to,
@@ -273,7 +275,10 @@ class SACGTrainer(TorchTrainer, LossFunction):
                 rollout_sample_actions = self.policy(rollout_sample_states).rsample()
                 rollout_sample_rewards = torch.zeros([batch_size, 1]).type(torch.FloatTensor)
                 for i in range(batch_size):
-                    self.env.wrapped_env.state = ptu.get_numpy(rollout_sample_states[i])
+                    if isinstance(self.env, mujoco_env.MujocoEnv):
+                        print('mujoco env gamma sampling not yet implemented!')
+                    else:
+                        self.env.wrapped_env.state = ptu.get_numpy(rollout_sample_states[i])
                     _, rollout_sample_rewards[i][0], _, _ = self.env.step(ptu.get_numpy(rollout_sample_actions[i]))
                 gamma_mve_first_term += (alpha_n / (1-self.g_mve_discount)) * rollout_sample_rewards
                 if n == self.g_mve_horizon:
