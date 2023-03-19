@@ -105,7 +105,10 @@ def experiment(variant):
     ## bootstrapped target distribution is mixture of
     ## single-step gaussian (with weight `1 - discount`)
     ## and target model (with weight `discount`)
-    g_bootstrap = BootstrapTarget(g_target_model, variant['trainer_kwargs']["g_discount"])
+    if variant['trainer_kwargs']["use_g_mve"]:
+        g_bootstrap = BootstrapTarget(g_target_model, variant['trainer_kwargs']["g_mve_discount"])
+    else:
+        g_bootstrap = BootstrapTarget(g_target_model, variant['trainer_kwargs']["value_discount"])
     
     trainer = SACGTrainer(
         env=eval_env,
@@ -149,10 +152,10 @@ if __name__ == "__main__":
             num_trains_per_train_loop=1000,
             num_expl_steps_per_train_loop=1000,
             min_num_steps_before_training=1000,
-            max_path_length=1000,
-            batch_size=1024,
-            vis=False,
-            vis_gamma=False,
+            max_path_length=250,
+            batch_size=256,
+            vis=True,
+            vis_gamma=True,
         ),
         trainer_kwargs=dict(
             policy_lr=1E-4,
@@ -161,14 +164,14 @@ if __name__ == "__main__":
             soft_target_tau=5e-3,
             reward_scale=1,
             use_automatic_entropy_tuning=True,
-            g_discount=0.80,
+            value_discount=0.99,
             g_sample_discount=0.90,
             g_lr=1E-4,
             g_tau = 0.005,
             target_update_period=10,
             g_sigma=0.01,
             use_g_mve=True,
-            g_mve_discount=0.99,
+            g_mve_discount=0.80,
             g_mve_horizon=1,
         ),
     )
