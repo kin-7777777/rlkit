@@ -280,6 +280,7 @@ class SACGTrainer(TorchTrainer, LossFunction):
             horizon_sample_vf = self.target_vf(horizon_sample_states)
             gamma_mve_second_term =  (((self.value_discount-self.g_mve_discount)/(1-self.g_mve_discount))**self.g_mve_horizon) * horizon_sample_vf
             
+            gamma_mve_first_term = gamma_mve_first_term.to(torch.device(DEVICE))
             v_gamma_mve = gamma_mve_first_term + gamma_mve_second_term
             target_q_values = rewards + self.value_discount * v_gamma_mve.to(torch.device(DEVICE))
 

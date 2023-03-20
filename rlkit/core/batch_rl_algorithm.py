@@ -20,6 +20,8 @@ from gamma.utils.arrays import (
 )
 from gamma.td.utils import make_condition
 
+import pickle
+
 class BatchRLAlgorithm(BaseRLAlgorithm, metaclass=abc.ABCMeta):
     def __init__(
             self,
@@ -96,6 +98,8 @@ class BatchRLAlgorithm(BaseRLAlgorithm, metaclass=abc.ABCMeta):
             self.num_eval_steps_per_epoch,
             discard_incomplete_paths=True,
         )
+        with open(plot_dir_eval+'/eval_paths.pkl', 'wb') as handle:
+            pickle.dump(eval_paths, handle, protocol=4)
         if self._vis:
             self.plot_paths(plot_dir_eval, self.epoch, eval_paths)
         gt.stamp('evaluation sampling')
@@ -106,6 +110,8 @@ class BatchRLAlgorithm(BaseRLAlgorithm, metaclass=abc.ABCMeta):
                 self.num_expl_steps_per_train_loop,
                 discard_incomplete_paths=False,
             )
+            with open(plot_dir_expl+'/expl_paths.pkl', 'wb') as handle:
+                pickle.dump(eval_paths, handle, protocol=4)
             if self._vis:
                 self.plot_paths(plot_dir_expl, self.epoch, new_expl_paths)
             gt.stamp('exploration sampling', unique=False)
