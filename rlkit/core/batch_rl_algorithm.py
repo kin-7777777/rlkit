@@ -98,19 +98,26 @@ class BatchRLAlgorithm(BaseRLAlgorithm, metaclass=abc.ABCMeta):
             self.num_eval_steps_per_epoch,
             discard_incomplete_paths=True,
         )
+        
+        plot_dir_eval_epoch = plot_dir_eval + "/epoch_"+str(self.epoch)
+        if not os.path.exists(plot_dir_eval_epoch):
+            os.makedirs(plot_dir_eval_epoch)
         with open(plot_dir_eval+'/eval_paths.pkl', 'wb') as handle:
             pickle.dump(eval_paths, handle, protocol=4)
         if self._vis:
             self.plot_paths(plot_dir_eval, self.epoch, eval_paths)
         gt.stamp('evaluation sampling')
         
-        for _ in range(self.num_train_loops_per_epoch):
+        for loop_num in range(self.num_train_loops_per_epoch):
             new_expl_paths = self.expl_data_collector.collect_new_paths(
                 self.max_path_length,
                 self.num_expl_steps_per_train_loop,
                 discard_incomplete_paths=False,
             )
-            with open(plot_dir_expl+'/expl_paths.pkl', 'wb') as handle:
+            plot_dir_expl_epoch = plot_dir_eval + "/epoch_"+str(self.epoch)
+            if not os.path.exists(plot_dir_expl_epoch):
+                os.makedirs(plot_dir_expl_epoch)
+            with open(plot_dir_expl_epoch+'/expl_paths'+'_loop_'+str(loop_num)+'.pkl', 'wb') as handle:
                 pickle.dump(eval_paths, handle, protocol=4)
             if self._vis:
                 self.plot_paths(plot_dir_expl, self.epoch, new_expl_paths)

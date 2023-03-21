@@ -32,7 +32,7 @@ from gamma.utils import (
     set_device,
 )
 
-def sac_g_func(value_disc, model_disc):
+def sac_g_func(value_disc, model_disc, mve_horizon):
 
     def experiment(variant):
         expl_env = NormalizedBoxEnv(HM_arena_continuous_task1_simplified())
@@ -134,21 +134,23 @@ def sac_g_func(value_disc, model_disc):
     # Run experiment.
     variant = dict(
         algorithm="SACG",
-        version="normal",
+        version="mouse speed 0.1",
         layer_size=256,
         replay_buffer_size=int(2E5),
         seed=0,
         algorithm_kwargs=dict(
-            # num_epochs=3000,
-            num_epochs=2,
-            num_eval_steps_per_epoch=5000,
-            num_trains_per_train_loop=1000,
-            num_expl_steps_per_train_loop=1000,
-            min_num_steps_before_training=1000,
+            num_epochs=400,
+            # num_eval_steps_per_epoch=5000,
+            # num_trains_per_train_loop=1000,
+            # num_expl_steps_per_train_loop=1000,
+            num_eval_steps_per_epoch=1000,
+            num_trains_per_train_loop=250,
+            num_expl_steps_per_train_loop=250,
+            min_num_steps_before_training=250,
             max_path_length=250,
             batch_size=1024,
-            vis=True,
-            vis_gamma=True,
+            vis=False,
+            vis_gamma=False,
         ),
         trainer_kwargs=dict(
             policy_lr=1E-4,
@@ -165,11 +167,11 @@ def sac_g_func(value_disc, model_disc):
             g_sigma=0.01,
             use_g_mve=True,
             g_mve_discount=model_disc,
-            g_mve_horizon=1,
+            g_mve_horizon=mve_horizon,
         ),
     )
     
-    experiment_name = "sacg_mouse_mve_"+str(model_disc)
+    experiment_name = "sacg_mouse_mve_spd0.01_"+str(model_disc)
     
     setup_logger(experiment_name, variant=variant)
     ptu.set_gpu_mode(False)  # optionally set the GPU (default=False)
