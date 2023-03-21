@@ -10,8 +10,6 @@ dependencies:
   - ca-certificates=2019.11.27=0
   - certifi=2019.11.28=py37_0
   - cffi=1.13.2=py37h2e261b9_0
-  - cudatoolkit==11.0.221
-  - nvidia::cudnn==8.0.4
   - decorator=4.4.1=py_0
   - freetype=2.9.1=h8a8886c_1
   - intel-openmp=2019.4=243
@@ -35,7 +33,7 @@ dependencies:
   - olefile=0.46=py37_0
   - openssl=1.1.1d=h7b6447c_3
   - parso=0.5.2=py_0
-  - patchelf=0.10=he6710b0_0
+  - patchelf
   - pexpect=4.7.0=py37_0
   - pickleshare=0.7.5=py37_0
   - pillow=6.2.1=py37h34e0f95_0
@@ -46,7 +44,7 @@ dependencies:
   - pygments=2.5.2=py_0
   - python=3.7.5=h0371630_0
   - readline=7.0=h7b6447c_5
-  - setuptools=42.0.2=py37_0
+  - setuptools
   - six=1.13.0=py37_0
   - sqlite=3.30.1=h7b6447c_0
   - tabulate=0.8.3=py37_0
@@ -54,7 +52,7 @@ dependencies:
   - tk=8.6.8=hbc83047_0
   - traitlets=4.3.3=py37_0
   - wcwidth=0.1.7=py37_0
-  - wheel=0.33.6=py37_0
+  - wheel
   - xz=5.2.4=h14c3975_4
   - zlib=1.2.11=h7b6447c_3
   - zstd=1.3.7=h0b5b093_0
@@ -66,17 +64,6 @@ dependencies:
     - argcomplete==1.12.2
     - astor==0.8.1
     - attrs==19.3.0
-    - azure-cli-core==2.11.1
-    - azure-cli-telemetry==1.0.6
-    - azure-common==1.1.26
-    - azure-core==1.9.0
-    - azure-mgmt-authorization==0.61.0
-    - azure-mgmt-compute==13.0.0
-    - azure-mgmt-core==1.2.0
-    - azure-mgmt-network==11.0.0
-    - azure-mgmt-resource==10.2.0
-    - azure-mgmt-storage==11.2.0
-    - azure-storage-blob==12.4.0
     - bcrypt==3.2.0
     - bleach==3.1.4
     - boto3==1.11.1
@@ -85,7 +72,7 @@ dependencies:
     - chardet==3.0.4
     - chex==0.0.8
     - click==7.0
-    - cloudpickle==1.3.0
+    - cloudpickle
     - colorama==0.4.4
     - colorlog==4.2.1
     - contextlib2==21.6.0
@@ -109,15 +96,13 @@ dependencies:
     - google-api-core==1.24.1
     - google-api-python-client==1.12.8
     - google-auth-httplib2==0.0.4
-    - google-cloud-core==1.5.0
-    - google-cloud-storage==1.35.0
     - google-crc32c==1.1.0
     - google-pasta==0.1.8
     - google-resumable-media==1.2.0
     - googleapis-common-protos==1.52.0
     - grpcio==1.26.0
     - gtimer==1.0.0b5
-    - gym==0.13.0
+    - gym
     - h5py==2.10.0
     - higher==0.2.1
     - httplib2==0.18.1
@@ -127,8 +112,8 @@ dependencies:
     - imageio-ffmpeg==0.4.2
     - importlib-metadata==1.6.0
     - iniconfig==1.1.1
-    - ipdb==0.12.3
-    - ipykernel==5.2.0
+    - ipdb
+    - ipykernel
     - ipywidgets==7.5.1
     - isodate==0.6.0
     - jax==0.2.13
@@ -137,10 +122,10 @@ dependencies:
     - jmespath==0.9.4
     - joblib==0.14.1
     - jsonschema==3.2.0
-    - jupyter==1.0.0
-    - jupyter-client==6.1.2
-    - jupyter-console==6.1.0
-    - jupyter-core==4.6.3
+    - jupyter
+    - jupyter-client
+    - jupyter-console
+    - jupyter-core
     - keras-applications==1.0.8
     - keras-preprocessing==1.1.0
     - kiwisolver==1.1.0
@@ -159,20 +144,20 @@ dependencies:
     - msgpack==1.0.2
     - msrest==0.6.19
     - msrestazure==0.6.4
-    - mujoco-py==2.0.2.9
+    - mujoco-py==2.0.2.8
     - nbconvert==5.6.1
     - nbformat==5.0.5
     - nose==1.3.7
     - nose2==0.10.0
-    - notebook==6.0.3
-    - numpy==1.21.0
+    - notebook
+    - numpy
     - numpy-stl==2.11.2
     - opencv-python==4.1.1.26
     - opt-einsum==3.1.0
     - optax==0.0.9
     - packaging==21.0
     - palettable==3.3.0
-    - pandas==1.3.0
+    - pandas
     - pandocfilters==1.4.2
     - paramiko==2.7.2
     - path==13.1.0
@@ -184,63 +169,34 @@ dependencies:
     - portalocker==1.7.1
     - proglog==0.1.9
     - prometheus-client==0.7.1
-    - protobuf==3.11.2
+    - protobuf==3.12
     - py==1.10.0
-    - pyarrow==4.0.1
-    - pybullet==2.5.5
-    - pygame==1.9.6
-    - pyglet==1.4.9
-    - pyhocon==0.3.57
-    - pyjwt==2.0.0
-    - pynacl==1.4.0
-    - pyopengl==3.1.5
-    - pyopenssl==20.0.1
-    - pyparsing==2.4.6
-    - pyprind==2.11.2
-    - pyquaternion==0.9.5
-    - pyrsistent==0.16.0
-    - pysocks==1.7.1
-    - pytest==6.2.4
-    - pytest-regtest==1.4.6
-    - python-dateutil==2.8.1
-    - python-utils==2.4.0
-    - pytz==2019.3
-    - pyyaml==5.2
+    - pytest-regtest
+    - python-dateutil
+    - python-utils
+    - pytz
+    - pyyaml
     - pyzmq==19.0.0
-    - qtconsole==4.7.2
-    - qtpy==1.9.0
-    - requests==2.23.0
-    - s3transfer==0.3.0
-    - sapien==0.6.0.dev0
-    - scikit-learn==0.23.2
-    - scipy==1.7.0
+    - qtconsole
+    - qtpy
+    - scikit-learn
     - seaborn==0.11.1
     - send2trash==1.5.0
-    - sk-video==1.1.10
-    - sklearn==0.0
+    - sk-video
     - statsmodels==0.12.2
     - tensorboard==2.2.2
     - tensorboard-logger==0.1.0
-    - tensorboardx==2.2
-    - tensorflow==2.2.0
-    - tensorflow-estimator==2.2.0
-    - tensorflow-probability==0.10.0
-    - terminado==0.8.3
-    - testpath==0.4.4
-    - theano==1.0.5
-    - threadpoolctl==2.1.0
-    - toml==0.10.2
-    - toolz==0.11.1
-    - torch==1.10.1+cu111
-    - torchvision==0.11.2+cu111
-    - tornado==6.0.4
-    - tqdm==4.41.1
-    - transforms3d==0.3.1
-    - uritemplate==3.0.1
-    - urllib3==1.25.7
-    - webencodings==0.5.1
-    - werkzeug==0.16.0
-    - widgetsnbextension==3.5.1
-    - wrapt==1.11.2
-    - zipp==3.1.0
+    - tensorboardx
+    - tensorflow
+    - tensorflow-estimator
+    - tensorflow-probability
+    - terminado
+    - testpath
+    - theano
+    - threadpoolctl
+    - toml
+    - toolz
+    - tornado
+    - tqdm
+    - zipp
 
