@@ -259,6 +259,8 @@ class SACGTrainer(TorchTrainer, LossFunction):
         ## condition dicts contain keys (s, a)
         condition_dict = format_batch_mve(obs, actions)
         
+        env_state_saved = self.env.wrapped_env.state # save state to restore later
+        
         if self.use_g_mve:
             gamma_mve_first_term = 0
             for n in range(1, self.g_mve_horizon+1):
@@ -293,6 +295,8 @@ class SACGTrainer(TorchTrainer, LossFunction):
                 self.env.wrapped_env.state = ptu.get_numpy(gamma_sample_states[i])
                 _, gamma_sample_rewards[i][0], _, _ = self.env.step(ptu.get_numpy(gamma_sample_actions[i]))
             target_q_values = gamma_sample_rewards / (1-self.value_discount)
+        
+        self.env.wrapped_env.state = env_state_saved # restore state
         
         q_target = target_q_values.detach().to(torch.device(DEVICE))
         qf1_loss = self.qf_criterion(q1_pred, q_target)
