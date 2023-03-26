@@ -121,7 +121,7 @@ class HM_arena_continuous_task1_simplified(gym.Env):
         'video.frames_per_second': 30
     }
 
-    def __init__(self):
+    def __init__(self, shaped=False):
         speed_coeff = 0.1
 
         self.reward_zone_size = 0.4
@@ -146,6 +146,8 @@ class HM_arena_continuous_task1_simplified(gym.Env):
 
         self.observation_space = spaces.Box(low=self.low_state, high=self.high_state, dtype=np.float32)
         self.action_space = spaces.Box(low=self.low_action, high=self.high_action, dtype=np.float32)
+        
+        self._shaped = shaped # shaped reward True or False
 
         # self.seed()
         self.reset()
@@ -187,7 +189,15 @@ class HM_arena_continuous_task1_simplified(gym.Env):
         # Finish if the agent reaches the goal state.
         done = bool(x_pos <= self.reward_zone_size and x_pos >= -self.reward_zone_size and y_pos <= self.reward_zone_size and y_pos >= -self.reward_zone_size)
 
-        reward = 0
+        if self._shaped:
+          x_dist = min(abs(x_pos - self.reward_zone_size), abs(x_pos - (-self.reward_zone_size)))
+          y_dist = min(abs(y_pos - self.reward_zone_size), abs(y_pos - (-self.reward_zone_size)))
+          shape_gradient = 0.5 / (self.max_x_pos - self.reward_zone_size)
+          x_shaped_reward = 0.5 - shape_gradient*x_dist
+          y_shaped_reward = 0.5 - shape_gradient*y_dist
+          reward = x_shaped_reward+y_shaped_reward
+        else:
+          reward = 0
         if done:
           reward = 1.0
 
