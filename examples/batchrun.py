@@ -8,4 +8,4 @@ gt.set_def_unique(False)
 # for model_disc in model_disc_range:
 #     sac_g_func(0.99, model_disc)
     
-sac_g_func(value_disc=0.99, model_disc=0.80, mve_horizon=5)
+sac_g_func(value_disc=0.99, model_disc=0.50, mve_horizon=1, seed=0)
