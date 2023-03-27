@@ -191,18 +191,22 @@ class HM_arena_continuous_task1_simplified(gym.Env):
 
         if self._shaped:
           
-          shape_gradient = 0.5 / (self.max_x_pos - self.reward_zone_size)
+          intermediate_reward = 0.2
+          shape_gradient = intermediate_reward / (self.max_x_pos - self.reward_zone_size)
+          square_coeff = intermediate_reward / (self.max_x_pos - self.reward_zone_size)**2 # reward = k*(x - x_max)^2 where x is distance from boundary
           
           if x_pos <= self.reward_zone_size and x_pos >= -self.reward_zone_size:
-            x_shaped_reward = 0.5
+            x_shaped_reward = intermediate_reward
           else:
             x_dist = min(abs(x_pos - self.reward_zone_size), abs(x_pos - (-self.reward_zone_size)))
-            x_shaped_reward = 0.5 - shape_gradient*x_dist
+            # x_shaped_reward = intermediate_reward - shape_gradient*x_dist
+            x_shaped_reward = square_coeff*(self.max_x_pos-x_dist)**2
           if y_pos <= self.reward_zone_size and y_pos >= -self.reward_zone_size:
-            y_shaped_reward = 0.5
+            y_shaped_reward = intermediate_reward
           else:
             y_dist = min(abs(y_pos - self.reward_zone_size), abs(y_pos - (-self.reward_zone_size)))
-            y_shaped_reward = 0.5 - shape_gradient*y_dist
+            # y_shaped_reward = intermediate_reward - shape_gradient*y_dist
+            y_shaped_reward = square_coeff*(self.max_y_pos-y_dist)**2
             
           reward = x_shaped_reward+y_shaped_reward
           
