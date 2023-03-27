@@ -6,6 +6,15 @@ import matplotlib.pyplot as plt
 def alpha_n(curly_g, g, n):
     return ((1 - curly_g)*(curly_g - g)**(n-1)) / (1 - g)**n
 
+# To check the claim that mve horizon of 1 with discount 0.8 is equivalent to model rollout of 5
+zero_rollout = 0
+for i in range(1,6):
+    zero_rollout += alpha_n(0.99, 0, i)
+mve_rollout = alpha_n(0.99, 0.8, 1)
+print(zero_rollout)
+print(mve_rollout)
+
+# To plot Figure 2b in the paper
 for value_discount in [0.5, 0.75, 0.9, 0.95, 0.975, 0.99]:
     
     model_discount_range = np.linspace(start=0, stop=value_discount, num=int(value_discount/0.001)+1)
